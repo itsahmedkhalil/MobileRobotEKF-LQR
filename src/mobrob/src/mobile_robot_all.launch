@@ -1,0 +1,22 @@
+<launch>
+  <rosparam command="load" file="$(find mobrob_util)/src/robot_info.yaml" />
+
+  <group ns="robot_operate">
+    <node pkg="mobrob" name="sensing_node" type="sensing_node.py"/>
+    <node pkg="mobrob" name="wheel_control_node" type="wheel_control_node.py"/>
+    <node pkg="mobrob" name="sensors_processing_node" type="sensors_processing.py"/>
+  </group>
+
+
+  <group ns="robot_simulate">
+    <node pkg="mobrob" name="robot_simulator" type="mobile_robot_kinematic_simulator.py"/>
+    <node pkg="mobrob" name="robot_animator" type="mobile_robot_animator.py"/>
+  </group>
+
+
+  <group ns="robot_control">
+    <node pkg="mobrob" name="set_desired_wheel_speeds" type="set_desired_wheel_speeds.py"/>
+  </group>
+  
+  
+</launch>

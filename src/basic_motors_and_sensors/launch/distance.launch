@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="basic_motors_and_sensors" name="motor_command_node" type="motor_command_node.py" output="screen" launch-prefix="xterm -e"/> 
+    <node pkg="rqt_graph" name="rqt_graph" type="rqt_graph"/>
+    <!-- <node pkg="rosbag" type="record" name="rosbag_record_cam" args="record -o record.bag"/>       -->
+</launch>

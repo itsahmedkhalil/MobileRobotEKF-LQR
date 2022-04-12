@@ -1,0 +1,34 @@
+<launch> 
+  <rosparam command="load" file="$(find mobrob_util)/src/robot_info.yaml" />
+
+  <group ns="robot_simulate">
+  <!-- For the "Simulate" launch only, remap a topic to make the dead reckoning listen to the simulation -->
+    <node pkg="mobrob" name="robot_simulator" type="mobile_robot_kinematic_simulator.py">
+      <remap from="/robot_wheel_displacements_simulated" to="/robot_wheel_displacements" />
+    </node>
+    <node pkg="mobrob" name="robot_animator" type="mobile_robot_animator.py"/>
+  </group>
+
+
+ <!-- New Group called "robot_estimate" to estimate the robot's location based only on sensor data. --> 
+ <!-- In this group, launch the "dead_reckoning" node and another "animator" to draw where the robot thinks it is. -->
+ <!-- "dead_reckoning" is designed for the real robot, so it subscribes to "/robot_wheel_displacements" - which comes from the Encoders -->
+ <!-- In this case, we're using it with simulated wheel_displacements data because this launch file is a simulation only. --> 
+ <!-- Therefore remap topics so dead_reckoning listens to "/robot_wheel_displacements_simulated" (from simulation) instead of "/robot_wheel_displacements" (from real encoders) --> 
+  <group ns="robot_estimate">
+    <!-- first a "dead reckoning" node -->
+    <node pkg="mobrob" name="dead_reckoning" type="dead_reckoning.py" />
+    
+    <!-- then an "animator" node, but remapped to make it subscribe to "/robot_pose_estimated" instead of "/robot_pose_simulated"  -->
+    <node pkg="mobrob" name="dead_reckoning_animator" type="mobile_robot_animator.py" >
+        <remap from="/robot_pose_simulated" to="/robot_pose_estimated"/>    
+    </node>
+  </group>
+
+
+  <group ns="robot_control">
+    <node pkg="mobrob" name="set_desired_wheel_speeds" type="set_desired_wheel_speeds_by_path_specs.py"/>
+  </group>
+  
+  
+</launch>

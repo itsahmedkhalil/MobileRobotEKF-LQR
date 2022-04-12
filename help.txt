@@ -1,0 +1,55 @@
+
+"""
+Created on Fri Feb 11 21:19:11 2022
+
+@author: pi
+"""
+
+"""
+How to read the position of the wheels:
+1 - Run 'roscore'
+2 - Run 'rosrun basic_motors_and_sensors motor_command_node.py' in a new terminal
+3 - Open a new terminal as root 'sudo su'
+4 - Run 'rosrun basic_motors_and_sensors motor_node.py' in the root terminal
+5 - Run 'sudoLoad' in a new terminal 
+6 - In the same terminal, run 'rosrun basic_motors_and_sensors encoder_reading_node.py'
+7 - In a new terminal run 'rosrun basic_motors_and_sensors wheel_distance.py'
+
+
+robot_wheel_displacements
+
+sensing_node.py
+
+wheel_control_node.py
+
+sensors_processing.py
+
+
+
+Lanuch for ekf.py
+
+set_desired_wheel_speeds_by_path_specs.py to set the /wheel_speeds_desired (topics)
+
+sensing_node.py             this opens the serial to get the data
+
+wheel_control_node.py       this processes the encoder data
+
+sensors_processing.py       this processes other sensors (imu)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
