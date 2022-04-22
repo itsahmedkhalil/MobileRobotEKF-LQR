@@ -60,6 +60,7 @@ find_package(catkin REQUIRED COMPONENTS
   ME439WheelDisplacements.msg
   ME439PathSpecs.msg
   ME439WaypointXY.msg
+  IMU.msg
  )
 
 ## Generate services in the 'srv' folder

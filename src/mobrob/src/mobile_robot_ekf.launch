@@ -4,7 +4,6 @@
   <group ns="robot_operate">
     <node pkg="mobrob" name="yaw_sensing_node" type="yaw_sensing_node.py"/>
     <node pkg="mobrob" name="wheel_control_node" type="wheel_control_node.py"/>
-    <!-- <node pkg="mobrob" name="sensors_processing_node" type="sensors_processing.py"/> -->
   </group>
 
 

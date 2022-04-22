@@ -8,8 +8,8 @@ import traceback
 # IMPORT the custom messages: 
 # we import it "from" the ROS package we created it in (here "me439robot") with an extension of .msg ...
 # and actually import the message type by name (here "ME439SensorsRaw" and others)
-from mobrob_util.msg import ME439SensorsRaw
-from std_msgs.msg import Float32
+from mobrob_util.msg import Yaw
+from std_msgs.msg import Float32, Time
 
 
 #==============================================================================
@@ -39,8 +39,9 @@ def talker():
 #==============================================================================
 def serial_port_publisher():
 # Create the publisher for the topic "/sensors_data_raw", with message type "ME439SensorsRaw"
-    pub_sensors = rospy.Publisher('/yaw_gyro', Float32, queue_size=10)
-    
+    pub_sensors = rospy.Publisher('/yaw_gyro', Yaw, queue_size=10)
+
+
     # Data comes in on the Serial port. Set that up and start it. 
     #----------setup serial--------------
     ser = serial.Serial(serial_data_port)  #serial port to Alamode or Arduino
@@ -55,8 +56,8 @@ def serial_port_publisher():
     
     
     # Declare the message that will go on that topic. 
-    pub_gyro_msg = Float32()
-    pub_gyro_msg.data = 0.0
+    pub_gyro_msg = Yaw()
+    
     
     ser.flushInput()  # Flush again to avoid backlogs. 
     # MAIN LOOP to keep loading the message with new data. 
@@ -73,6 +74,7 @@ def serial_port_publisher():
 #            print(data_type)
 
             if data_type == 'A0':
+                pub_gyro_msg.time = rospy.get_time()
                 pub_gyro_msg.data = data_value
                 newa0 = 1
 
