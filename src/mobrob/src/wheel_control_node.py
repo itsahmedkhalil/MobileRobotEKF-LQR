@@ -111,8 +111,9 @@ def encoder_update(quad_encoders, mot_controllers):
     robot_wheel_angles_message.ang_right = 0. 
 
     robot_wheel_displacements_message = ME439WheelDisplacements()
-    robot_wheel_displacements_message.d_left = 0.
-    robot_wheel_displacements_message.d_right = 0.
+    
+    # robot_wheel_displacements_message.d_left = 0.
+    # robot_wheel_displacements_message.d_right = 0.
 
     robot_wheel_vel_message = ME439WheelSpeeds()
     robot_wheel_vel_message.v_left = 0.
@@ -137,7 +138,7 @@ def encoder_update(quad_encoders, mot_controllers):
         robot_wheel_angles_message.ang_left = quad_encoders[0].radians
         robot_wheel_displacements_message.d_left = quad_encoders[0].meters
         robot_wheel_vel_message.v_left  = quad_encoders[0].meters_per_second
-        
+        robot_wheel_displacements_message.stamp  = rospy.Time.now()
         #processing for left encoder.
         t1 = rospy.get_rostime()   # or time.time()
         dt1 = (t1-t1_previous).to_sec()
@@ -148,6 +149,7 @@ def encoder_update(quad_encoders, mot_controllers):
         pub_motorcommands_message.cmd1 = int(mot_controllers[1].motor_command)
         robot_wheel_angles_message.ang_right = quad_encoders[1].radians
         robot_wheel_vel_message.v_right = quad_encoders[1].meters
+        robot_wheel_displacements_message.d_right = quad_encoders[1].meters
 
         publishCount = publishCount +1;
         #only publish every 10 loops to avoid overloading ROS (should be ~10Hz)

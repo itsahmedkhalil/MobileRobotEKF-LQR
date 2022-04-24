@@ -13,7 +13,8 @@ import numpy as np
 import traceback 
 from geometry_msgs.msg import Pose2D
 from std_msgs.msg import Float32
-from mobrob_util.msg import ME439SensorsProcessed,ME439WheelSpeeds, ME439WheelDisplacements
+import time
+from mobrob_util.msg import ME439SensorsProcessed,ME439WheelSpeeds, ME439WheelDisplacements, IMU
 
 #==============================================================================
 # # Get parameters from rosparam
@@ -79,6 +80,12 @@ class Ekf:
         self.gyro = 0
         self.dt = 1/10
         self.x_hat_k_1 = np.array([[0, 0, 0, 0, 0]]).T     #estimated state column vector
+        self.gyroTprev = 0
+        self.encTprev = 0
+        self.counterG = 0
+        self.counterE = 0
+        self.encdT = 0.1
+        self.gyrodT =1/200
 
             # =============================================================================
     #     # Launch a node called "mobile_robot_simulator"
@@ -89,7 +96,7 @@ class Ekf:
     #     # Listen to the Encoder and gyro data"
     # =============================================================================    
 
-        sub_gyro = rospy.Subscriber('/yaw_gyro', Float32, self.gyro_listener)
+        sub_gyro = rospy.Subscriber('/yaw_gyro', IMU, self.gyro_listener)
 
         #sub_enc_vel = rospy.Subscriber('/robot_wheel_vel',  ME439WheelSpeeds, self.enc_vel) 
 
@@ -100,41 +107,33 @@ class Ekf:
     # =============================================================================        
 
         sub_vel_input = rospy.Subscriber('/wheel_speeds_desired', ME439WheelSpeeds, self.vel_input) 
-    #==============================================================================
-    #     # Here start a Subscriber to the "/robot_position_override" topic.
-    #     #  Topic "/robot_position_override", message type "Pose2D"
-    #     #  Call the function "set_pose" as a callback
-    #     #  ** Publishing on this topic elsewhere is optional, but this gives the 
-    #     #     node the ability to take a position override from e.g. an external 
-    #     #     measurement or a known starting position. 
-    #==============================================================================
-        #sub_position_override = rospy.Subscriber('/robot_position_override', Pose2D, set_pose)  
-
-
-
-
-
-        
-    # =============================================================================
-    #     # Loop to run the publication
-    # =============================================================================
-       
-
-
 
     def gyro_listener(self, msg_in):
-
-        self.gyro = -msg_in.data*np.pi/180.0
+        if self.counterG > 0:
+            self.gyroTnow = float(msg_in.stamp.secs + msg_in.stamp.nsecs/(10**9))
+            self.gyro = -msg_in.yaw#*np.pi/180.0
+            self.gyrodT = self.gyroTnow - self.gyroTprev
+            self.gyroTprev = self.gyroTnow
+        else:
+            self.gyroTprev = float(time.time())
+            self.counterG+=1
 
     def enc_disp(self, msg_in):
-    #     pass
-        self.e0_now = msg_in.d_left
-        self.e1_now = msg_in.d_right
-    
-        self.e0 = (self.e0_now - self.e0_prev)/self.dt
-        self.e1 = (self.e1_now - self.e1_prev)/self.dt
-        self.e0_prev = self.e0_now
-        self.e1_prev = self.e1_now
+        if self.counterE > 0:
+            self.encTnow = float(msg_in.stamp.secs + msg_in.stamp.nsecs/(10**9))
+            self.e0_now = msg_in.d_left
+            self.e1_now = msg_in.d_right
+        
+            self.encdT = self.encTnow-self.encTprev
+
+            self.e0 = (self.e0_now - self.e0_prev)/self.encdT
+            self.e1 = (self.e1_now - self.e1_prev)/self.encdT
+            self.e0_prev = self.e0_now
+            self.e1_prev = self.e1_now
+            self.encTprev = self.encTnow
+        else:
+            self.encTprev = float(time.time())
+            self.counterE+=1
 
     # def enc_vel(self,msg_in):
   
@@ -202,9 +201,9 @@ if __name__ == '__main__':
             theta = ek.x_hat_k_1[2][0]
             
             A = np.array([ #state transition matrix
-            [1,0,0 , -(1/2)*np.sin(theta)*ek.dt, -(1/2)*np.sin(theta)*ek.dt  ],
-            [0,1,0 , (1/2)*np.cos(theta)*ek.dt, (1/2)*np.cos(theta)*ek.dt  ],
-            [0,0,1 , (ek.dt/wheel_width)     , -(ek.dt/wheel_width)     ],
+            [1,0,0 , -(1/2)*np.sin(theta)*ek.encdT, -(1/2)*np.sin(theta)*ek.encdT ], #encoder
+            [0,1,0 , (1/2)*np.cos(theta)*ek.encdT, (1/2)*np.cos(theta)*ek.encdT  ], #encoder
+            [0,0,1 , (ek.gyrodT/wheel_width)     , -(ek.gyrodT/wheel_width)     ], #theta
             [0,0,0 ,                        1,                          0],
             [0,0,0 ,                        0,                          1],
             ]) 

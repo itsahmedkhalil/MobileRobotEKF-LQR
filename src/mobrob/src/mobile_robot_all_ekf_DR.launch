@@ -2,7 +2,7 @@
   <rosparam command="load" file="$(find mobrob_util)/src/robot_info.yaml" />
 
   <group ns="robot_operate">
-    <node pkg="mobrob" name="yaw_sensing_node" type="yaw_sensing_node.py"/>
+    <node pkg="mobrob" name="yaw_sensing_node" type="imuNode.py"/>
     <node pkg="mobrob" name="wheel_control_node" type="wheel_control_node.py"/>
   </group>
 

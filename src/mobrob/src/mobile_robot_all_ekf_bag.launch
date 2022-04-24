@@ -1,11 +1,11 @@
 <launch>
   <rosparam command="load" file="$(find mobrob_util)/src/robot_info.yaml" />
 
-  <group ns="robot_operate">
-    <node pkg="mobrob" name="imuNode" type="imuNode.py"/>
+  <!-- <group ns="robot_operate">
+    <node pkg="mobrob" name="yaw_sensing_node" type="imuNode.py"/>
     <node pkg="mobrob" name="wheel_control_node" type="wheel_control_node.py"/>
-  </group>
-
+  </group> -->
+  
 
   <group ns="robot_simulate">
     <node pkg="mobrob" name="robot_simulator" type="mobile_robot_kinematic_simulator.py"/>
@@ -13,15 +13,20 @@
   </group>
 
 
- <!-- New Group called "robot_estimate" to estimate the robot's location based only on sensor data. -->
+ <!-- New Group called "robot_estimate" to estimate the robot's location based only on sensor data. --> 
  <!-- In this group, launch the "dead_reckoning" node and another "animator" to draw where the robot thinks it is. -->
   <group ns="robot_estimate">
     <!-- first a "dead reckoning" node -->
-    <node pkg="mobrob" name="ekf" type="ekf.py" />
+    <node pkg="mobrob" name="dead_reckoning" type="dead_reckoning.py" />
 
+    <node pkg="mobrob" name="ekf" type="ekf.py" />
+    
     <!-- then an "animator" node, but remapped to make it subscribe to "/robot_pose_estimated" instead of "/robot_pose_simulated"  -->
     <node pkg="mobrob" name="dead_reckoning_animator" type="mobile_robot_animator.py" >
-        <remap from="/robot_pose_simulated" to="/robot_pose_ekf"/>
+        <remap from="/robot_pose_simulated" to="/robot_pose_estimated"/>    
+    </node>
+    <node pkg="mobrob" name="ekf_animator" type="mobile_robot_animator.py" >
+        <remap from="/robot_pose_simulated" to="/robot_pose_ekf"/>    
     </node>
   </group>
 
@@ -29,7 +34,8 @@
   <group ns="robot_control">
     <node pkg="mobrob" name="set_desired_wheel_speeds" type="set_desired_wheel_speeds_by_path_specs.py"/>
   </group>
-
-
+  
+  <node pkg = "rosbag" type = "play" name="name" output="screen" args="$(find mobrob_util)/src/bagfiles/name.bag" />
+  
 </launch>
 
