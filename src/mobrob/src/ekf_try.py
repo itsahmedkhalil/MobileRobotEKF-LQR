@@ -44,24 +44,15 @@ d_right_previous = 0.
 f = 10.     # Hz 
 class Ekf:
     def __init__ (self):
-        self.B = np.array([      #input matrix
-            [0,0],
-            [0,0],
-            [0,0],
-            [1,0],
-            [0,1],
-            ])   
-        self.P_k_1 = np.eye(5)     #initialize covariance matrix
-        self.Q = 0.02*np.eye(5)  #process noise covariance 
+
+        self.P_k_1 = np.eye(3)     #initialize covariance matrix
+        self.Q = 0.02*np.eye(3)  #process noise covariance 
         
         self.gyrodT =1/200
 
 
-        self.H = np.array([
-            [0,0,0,            1,             0],
-            [0,0,0,            0,             1],
-            [0,0,self.gyrodT,  0,             0],
-        ])  #state to measurement matrix                           
+
+        self.A = np.eye(3)          
 
         self.R = 0.4*np.eye(3)  #measurement noise covariance
         self.e0 = 0
@@ -80,8 +71,8 @@ class Ekf:
         self.e1 = 0
         self.gyro = 0
         self.dt = 1/f
-        #x_hat is x,y,theta, vr, vl
-        self.x_hat_k_1 = np.array([[0, 0, 0, 0, 0]]).T     #estimated state column vector
+        #x_hat is x,y,theta, x_dot, y_dot
+        self.x_hat_k_1 = np.array([[0, 0, 0]]).T     #estimated state column vector
         self.gyroTprev = 0
         self.encTprev = 0
         self.counterG = 0
@@ -113,7 +104,7 @@ class Ekf:
         if self.counterG > 0:
             self.gyroTnow = float(msg_in.stamp.secs + msg_in.stamp.nsecs/(10**9))
             self.gyrodT = self.gyroTnow - self.gyroTprev
-            self.gyro += -msg_in.yaw*self.gyrodT#*np.pi/180.0
+            self.gyro += msg_in.yaw*self.gyrodT#*np.pi/180.0
             self.gyroTprev = self.gyroTnow
         else:
             self.gyroTprev = float(time.time())
@@ -200,27 +191,25 @@ if __name__ == '__main__':
             # v_l = ek.x_hat_k_1[4][0]
             theta = ek.x_hat_k_1[2][0]
             
-            A = np.array([ #state transition matrix
-            [1,0,0 , -(1/2)*np.sin(theta)*ek.dt, -(1/2)*np.sin(theta)*ek.dt ], #encoder
-            [0,1,0 , (1/2)*np.cos(theta)*ek.dt, (1/2)*np.cos(theta)*ek.dt  ], #encoder
-            [0,0,1 , (ek.dt/wheel_width)     , -(ek.dt/wheel_width)     ], #theta
-            [0,0,0 ,                        1,                          0],
-            [0,0,0 ,                        0,                          1],
-            ]) 
+            B = np.array([      #input matrix
+            [0.5*np.cos(theta)*ek.dt   ,0.5*np.cos(theta)*ek.dt],
+            [0.5*np.sin(theta)*ek.dt   ,0.5*np.cos(theta)*ek.dt],
+            [ek.dt/wheel_width         ,-ek.dt/wheel_width     ],
+            ])   
             # Publish the pose
-            x_hat_k = A@ek.x_hat_k_1 +  ek.B@u_k_1
+            x_hat_k = ek.A@ek.x_hat_k_1 +  B@u_k_1
             #print(x_hat_k)
-            P_k = A@ek.P_k_1@A.T +ek.Q
+            P_k = ek.A@ek.P_k_1@ek.A.T +ek.Q
 
-            ek.H = np.array([
-            [0,0,0,            1,             0],
-            [0,0,0,            0,             1],
-            [0,0,1,  0,             0],
-            ])  #state to measurement matrix        
+            H = np.linalg.inv(np.array([      #input matrix
+            [0.5*np.cos(theta)*ek.dt   ,0.5*np.cos(theta)*ek.dt, 0],
+            [0.5*np.sin(theta)*ek.dt   ,0.5*np.cos(theta)*ek.dt, 0],
+            [0                         ,0                      , 1],
+            ]))     #state to measurement matrix        
             #print(P_k)
-            K = P_k@ek.H.T@np.linalg.inv(ek.H@P_k@ek.H.T + ek.R)
-            x_k_new = x_hat_k + K@(z_k_1 - ek.H@x_hat_k)
-            P_k_new = (np.identity(5) - K@ek.H)@P_k #P_k - K@ek.H@P_k
+            K = P_k@H.T@np.linalg.inv(H@P_k@H.T + ek.R)
+            x_k_new = x_hat_k + K@(z_k_1 - H@x_hat_k)
+            P_k_new = (np.identity(3) - K@H)@P_k #P_k - K@ek.H@P_k
      
             robot_pose_estimated_message.x = x_k_new[0][0]
             robot_pose_estimated_message.y = x_k_new[1][0]
