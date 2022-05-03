@@ -44,7 +44,8 @@ robot = m439rbt.robot(wheel_width, body_length, wheel_radius)
 #stage_settings = np.array( [ robot.plan_pause(1.0), robot.plan_line(0.3, 0.2), robot.plan_line(-0.1, -0.2), robot.plan_pause(2.0)] )
 # Example: pause, forward, pause, pivot right 180 deg, pause, return to home, pause, turn, pause. 
 # ** NOTE the signs on the Omega and Angle for the "plan_pivot" calls! 
-stage_settings = np.array( [ robot.plan_pause(1.0), robot.plan_line(0.1, 0.3), robot.plan_pause(1.0), robot.plan_pivot(-1.0, -np.pi), robot.plan_pause(1.0), robot.plan_line(0.1, 0.3), robot.plan_pause(1.0), robot.plan_pivot(1.0, np.pi), robot.plan_pause(1.0)] )
+stage_settings = np.array( [ robot.plan_pause(1.0), robot.plan_line(0.1, 0.4), robot.plan_pause(0.5), robot.plan_pivot(-2.0, np.pi/2), robot.plan_pause(1.0), robot.plan_line(0.1, 0.3), robot.plan_pause(1.0), robot.plan_pivot(1.0, np.pi/3), robot.plan_pause(1.0), robot.plan_arc(0.25,2,2*np.pi)] )
+#stage_settings = np.array( [ [0,0,0],[3,0.100,0.100],[1,0,0],[1.5,0.1592,-0.1592],[1,0,0],[3,0.100,0.100],[1,0,0],[1.5,-0.1592,0.1592],[1,0,0]] )
 ####    CODE HERE: ADD YOUR OWN  
 
 

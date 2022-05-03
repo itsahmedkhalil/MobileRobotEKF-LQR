@@ -53,7 +53,7 @@ robot = m439rbt.robot(wheel_width, body_length, wheel_radius)
 ## 1 m circle starting at [-2,-2]
 #path_specs = np.array([[-2,-2,0,1,2*np.pi*1]])
 ## Picture of a cart with two wheels
-#path_specs = np.array([[0,0,0,np.inf,1],[0,1,-np.pi/2,np.inf,3], [3,1,-np.pi,np.inf,1], [3,0,np.pi/2,np.inf,0.5],[2.5,0,np.pi/2,0.5,2*np.pi*0.5],[2.5,0,np.pi/2,np.inf,2],[0.5,0,np.pi/2,0.5,2*np.pi*0.5], [0.5,0,np.pi/2,np.inf,0.5]])
+path_specs = np.array([[0,0,0,np.inf,1],[0,1,-np.pi/2,np.inf,3], [3,1,-np.pi,np.inf,1], [3,0,np.pi/2,np.inf,0.5],[2.5,0,np.pi/2,0.5,2*np.pi*0.5],[2.5,0,np.pi/2,np.inf,2],[0.5,0,np.pi/2,0.5,2*np.pi*0.5], [0.5,0,np.pi/2,np.inf,0.5]])
 
 ###############################################################################
 # ALTERNATIVELY, use Geometric Constructors to automatically make the specs: 

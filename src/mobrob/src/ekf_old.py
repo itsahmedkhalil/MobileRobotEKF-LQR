@@ -41,7 +41,7 @@ d_right_previous = 0.
 
 
 # Rate to set how often the estimated "pose" is published
-f = 300.     # Hz 
+f = 10.     # Hz 
 class Ekf:
     def __init__ (self):
         self.B = np.array([      #input matrix
@@ -51,23 +51,25 @@ class Ekf:
             [1,0],
             [0,1],
             ])   
-        self.P_k_1 = 10*np.eye(5)     #initialize covariance matrix
-        self.Q = 0.5*np.eye(5)  #process noise covariance 
+        self.P_k_1 = np.eye(5)     #initialize covariance matrix
+        self.Q = 0.02*np.eye(5)  #process noise covariance 
         
-        self.gyrodT =1/300.0
 
 
         self.H = np.array([
             [0,0,0,            1,             0],
             [0,0,0,            0,             1],
-            [0,0,0,  1/wheel_width,             -1/wheel_width],
+            [0,0,0,1/wheel_width,-1/wheel_width],
         ])  #state to measurement matrix                           
+
+
 
         self.R = np.array([
             [(1/6)**2, 0, 0],
             [0, (1/6)**2, 0],
             [0 ,0, 0.0023635210668727256**2],
-        ])#0.4*np.eye(3)  #measurement noise covariance encoderR,L,gyro        self.e0 = 0
+        ])#0.4*np.eye(3)  #measurement noise covariance encoderR,L,gyro
+        self.e0 = 0
         self.e0_prev = 0
         self.e1 = 0
         self.e1_prev =0
@@ -82,14 +84,14 @@ class Ekf:
         self.e0 = 0
         self.e1 = 0
         self.gyro = 0
-        self.dt = 1/f
-        #x_hat is x,y,theta, vr, vl
+        self.dt = 1/10
         self.x_hat_k_1 = np.array([[0, 0, 0, 0, 0]]).T     #estimated state column vector
         self.gyroTprev = 0
         self.encTprev = 0
         self.counterG = 0
         self.counterE = 0
-        self.encdT = 0.01
+        self.encdT = 0.1
+        self.gyrodT =1/200
 
             # =============================================================================
     #     # Launch a node called "mobile_robot_simulator"
@@ -115,9 +117,8 @@ class Ekf:
     def gyro_listener(self, msg_in):
         if self.counterG > 0:
             self.gyroTnow = float(msg_in.stamp.secs + msg_in.stamp.nsecs/(10**9))
+            self.gyro = -msg_in.yaw#*np.pi/180.0
             self.gyrodT = self.gyroTnow - self.gyroTprev
-            self.gyro = -msg_in.yaw#*self.gyrodT#*np.pi/180.0
-            #print("gyro1: ", self.gyro)
             self.gyroTprev = self.gyroTnow
         else:
             self.gyroTprev = float(time.time())
@@ -181,6 +182,14 @@ if __name__ == '__main__':
     try:
         ek = Ekf()
 
+    
+
+
+            #==============================================================================
+        ####    CODE HERE:
+        #     # Here a Publisher for the Estimated Robot Pose. 
+        #     # Topic '/robot_pose_estimated', Message type: Pose2D
+        #==============================================================================
         pub_robot_pose_estimated = rospy.Publisher('/robot_pose_ekf', Pose2D, queue_size = 1)
         robot_pose_estimated_message = Pose2D()
 
@@ -189,40 +198,25 @@ if __name__ == '__main__':
         # =============================================================================
         r = rospy.Rate(f)
         while not rospy.is_shutdown():
-            #print("gyro2",ek.gyro)
             z_k_1 = np.array([[ek.e1,ek.e0,ek.gyro]]).T 
             
             u_k_1 = np.array([[ek.v_r_in,ek.v_l_in]]).T     #control inputs
+            print(z_k_1)
             # v_r = ek.x_hat_k_1[3][0]
             # v_l = ek.x_hat_k_1[4][0]
             theta = ek.x_hat_k_1[2][0]
-            print(ek.x_hat_k_1)
             
             A = np.array([ #state transition matrix
-            [1,0,0 , -(1/2)*np.sin(theta)*ek.dt, -(1/2)*np.sin(theta)*ek.dt ], #encoder
-            [0,1,0 , (1/2)*np.cos(theta)*ek.dt, (1/2)*np.cos(theta)*ek.dt  ], #encoder
-            [0,0,1 , (ek.dt/wheel_width)     , -(ek.dt/wheel_width)     ], #theta
+            [1,0,0 , -(1/2)*np.sin(theta)*ek.encdT, -(1/2)*np.sin(theta)*ek.encdT ], #encoder
+            [0,1,0 , (1/2)*np.cos(theta)*ek.encdT, (1/2)*np.cos(theta)*ek.encdT  ], #encoder
+            [0,0,1 , (ek.gyrodT/wheel_width)     , -(ek.gyrodT/wheel_width)     ], #theta
             [0,0,0 ,                        1,                          0],
             [0,0,0 ,                        0,                          1],
             ]) 
-
-            # A = np.array([ #state transition matrix
-            # [1,0,0 , (1/2)*np.cos(theta)*ek.dt, (1/2)*np.cos(theta)*ek.dt ], #encoder
-            # [0,1,0 , (1/2)*np.sin(theta)*ek.dt, (1/2)*np.sin(theta)*ek.dt  ], #encoder
-            # [0,0,1 , (ek.dt/wheel_width)     , -(ek.dt/wheel_width)     ], #theta
-            # [0,0,0 ,                        1,                          0],
-            # [0,0,0 ,                        0,                          1],
-            # ]) 
-            # Prediction
+            # Publish the pose
             x_hat_k = A@ek.x_hat_k_1 +  ek.B@u_k_1
-            #print(x_hat_k[1])
+            #print(x_hat_k)
             P_k = A@ek.P_k_1@A.T +ek.Q
-
-            # ek.H = np.array([
-            # [0,0,0,            1,             0],
-            # [0,0,0,            0,             1],
-            # [0,0,1/150.,  0,             0],
-            # ])  #state to measurement matrix        
             #print(P_k)
             K = P_k@ek.H.T@np.linalg.inv(ek.H@P_k@ek.H.T + ek.R)
             x_k_new = x_hat_k + K@(z_k_1 - ek.H@x_hat_k)
@@ -232,6 +226,7 @@ if __name__ == '__main__':
             robot_pose_estimated_message.y = x_k_new[1][0]
             robot_pose_estimated_message.theta = x_k_new[2][0]
             pub_robot_pose_estimated.publish(robot_pose_estimated_message)
+            
             # Log the info to the ROS log. 
             #rospy.loginfo(x_k_new)
             ek.x_hat_k_1 = x_k_new

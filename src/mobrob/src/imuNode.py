@@ -5,6 +5,7 @@ import adafruit_mpu6050
 import rospy
 import traceback 
 import time
+import numpy as np
 from mobrob_util.msg import IMU
 
 
@@ -21,11 +22,24 @@ def publisher():
     pub_sensors = rospy.Publisher('/yaw_gyro', IMU, queue_size=2)
     rate = rospy.Rate(300)
     pub_gyro_msg = IMU()
+    yaw_offset = []
+    for i in range(200):
+        yaw_offset.append(mpu.gyro[2])
+    yaw_offset = np.average(yaw_offset)
+    print("yaw offset:",yaw_offset)
+
+    yaw_data = []
+    # for i in range(3000):
+    #     yaw_data.append(mpu.gyro[2]-yaw_offset)
+    # yaw_std = np.std(yaw_data)
+    # yaw_mean = np.mean(yaw_data)
+    # print("Standard Deviation: ", yaw_std)
+    # print("Mean: ", yaw_mean)
 
     while not rospy.is_shutdown():
         try:
             pub_gyro_msg.stamp = rospy.Time.now()           
-            pub_gyro_msg.yaw = mpu.gyro[2]
+            pub_gyro_msg.yaw = mpu.gyro[2] - yaw_offset
             pub_sensors.publish(pub_gyro_msg)  
             
         except Exception: 
