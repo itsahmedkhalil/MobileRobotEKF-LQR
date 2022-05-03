@@ -11,11 +11,10 @@ from mobrob_util import msg
 import rospy
 import numpy as np
 import traceback 
-from geometry_msgs.msg import Pose2D
+from geometry_msgs.msg import Pose2D, Twist
 from std_msgs.msg import Float32
 import time
 from mobrob_util.msg import ME439SensorsProcessed,ME439WheelSpeeds, ME439WheelDisplacements, IMU
-
 #==============================================================================
 # # Get parameters from rosparam
 # # NOTE this is the Estimator, so we should use the "model" parameters. 
@@ -103,17 +102,23 @@ class Ekf:
     #     # Listen to the Encoder and gyro data"
     # =============================================================================    
 
-        sub_gyro = rospy.Subscriber('/yaw_gyro', IMU, self.gyro_listener)
+        self.sub_gyro = rospy.Subscriber('/yaw_gyro', IMU, self.gyro_listener)
 
         #sub_enc_vel = rospy.Subscriber('/robot_wheel_vel',  ME439WheelSpeeds, self.enc_vel) 
 
-        sub_enc_disp = rospy.Subscriber('/robot_wheel_displacements', ME439WheelDisplacements, self.enc_disp)
+        self.sub_enc_disp = rospy.Subscriber('/robot_wheel_displacements', ME439WheelDisplacements, self.enc_disp)
 
     # =============================================================================
     #     # Listen to the control inputs"
     # =============================================================================        
 
-        sub_vel_input = rospy.Subscriber('/wheel_speeds_desired', ME439WheelSpeeds, self.vel_input) 
+        self.sub_vel_input = rospy.Subscriber('/wheel_speeds_desired', ME439WheelSpeeds, self.vel_input) 
+
+    # =============================================================================
+    #     # Command Velocity publisher for Gazebo"
+    # =============================================================================     
+        # self.pub_vel_gazebo = rospy.Publisher('/mobrob/cmd_vel', Twist, queue_size=10)
+        # self.vel_gazebo = Twist()
 
     def gyro_listener(self, msg_in):
         if self.counterG > 0:
@@ -158,6 +163,9 @@ class Ekf:
         
         self.v_r_in = msg_in.v_right
         self.v_l_in = msg_in.v_left
+        # self.vel_gazebo.linear.x = (self.v_r_in + self.v_l_in)/2.0
+        # self.vel_gazebo.angular.z = (self.v_r_in - self.v_l_in)/wheel_width
+        # self.pub_vel_gazebo.publish(self.vel_gazebo)
 
     # # =============================================================================
     # # # Callback function for "set_pose" (to override the estimated position)
