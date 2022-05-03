@@ -1,0 +1,29 @@
+<launch>
+  <rosparam command="load" file="$(find mobrob_util)/src/robot_info.yaml" />
+  <!-- Add a parameter that finds the SVG file with the path to follow. You can change the path file by entering its name. --> 
+  <param name="path_file_svg" value="$(find mobrob)/src/SVGtest.svg" />
+
+  <param name="type_of_launch" value="simulation"/>
+
+  <arg name="model" default="$(find mobrob_util)/src/rviz_files/mobile-robot.urdf" />
+  <arg name="gui" default="true" />
+  <arg name="rvizconfig" default="$(find mobrob_util)/src/rviz_files/rviz_config.rviz" />
+
+  <param name="robot_description" command="xacro --inorder $(arg model)" />
+  <param name="use_gui" value="$(arg gui)"/>
+
+  <node name="poseToTf2" pkg="mobrob" type="poseToTf2.py"/>
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
+  
+  <group ns="robot_simulate">
+    <node pkg="mobrob" name="robot_simulator" type="mobile_robot_kinematic_simulator.py"/>
+    <node pkg="mobrob" name="robot_animator" type="mobile_robot_animator.py"/>
+  </group>
+
+  <group ns="robot_control">
+    <node pkg="mobrob" name="set_desired_wheel_speeds" type="set_desired_wheel_speeds_by_path_specs.py"/>
+  </group>
+  
+  
+</launch>

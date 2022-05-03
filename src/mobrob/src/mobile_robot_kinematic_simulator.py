@@ -10,7 +10,7 @@
 import rospy
 import traceback 
 import me439_mobile_robot_class_v00 as m439rbt
-from geometry_msgs.msg import Pose2D
+from geometry_msgs.msg import Pose2D, Twist
 from mobrob_util.msg import ME439WheelSpeeds, ME439WheelAngles, ME439WheelDisplacements
 
 #==============================================================================
@@ -54,6 +54,7 @@ def simulate():
     robot_wheel_angles_message = ME439WheelAngles()
     pub_robot_wheel_displacements = rospy.Publisher('/robot_wheel_displacements_simulated', ME439WheelDisplacements, queue_size = 10)
     robot_wheel_displacements_message = ME439WheelDisplacements()
+
     
     # Rate object to set a simulation rate
     r = rospy.Rate(f)
@@ -107,6 +108,10 @@ def set_wheel_speed_targets(msg_in, robot):
     t_previous = t_current      # save the current time as the previous time, for the next use. 
     robot.integration_step(dt)
     robot.set_wheel_speeds(msg_in.v_left, msg_in.v_right)
+    vel_gazebo.linear.x = (msg_in.v_right + msg_in.v_left)/2.0
+    vel_gazebo.angular.z = (msg_in.v_right - msg_in.v_left)/wheel_width
+    pub_vel_gazebo.publish(vel_gazebo)
+
     
     
     
@@ -114,7 +119,12 @@ def set_wheel_speed_targets(msg_in, robot):
     
     
 if __name__ == '__main__':
-    try: 
+    try:
+        # =============================================================================
+        # Command Velocity publisher for Gazebo"
+        # =============================================================================   
+        pub_vel_gazebo = rospy.Publisher('/mobrob/cmd_vel', Twist, queue_size=10)
+        vel_gazebo = Twist()
         simulate()
     except rospy.ROSInterruptException: 
         traceback.print_exc()

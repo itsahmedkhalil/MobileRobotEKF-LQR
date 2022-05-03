@@ -19,7 +19,7 @@
     <!-- first a "dead reckoning" node -->
     <node pkg="mobrob" name="dead_reckoning" type="dead_reckoning.py" />
 
-    <node pkg="mobrob" name="ekf" type="ekf.py" />
+    <node pkg="mobrob" name="ekf" type="ekf_try.py" />
 
     <!-- then an "animator" node, but remapped to make it subscribe to "/robot_pose_estimated" instead of "/robot_pose_simulated"  -->
     <node pkg="mobrob" name="dead_reckoning_animator" type="mobile_robot_animator.py">
