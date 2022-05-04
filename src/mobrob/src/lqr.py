@@ -5,11 +5,12 @@ import rospy
 import serial
 import traceback 
 from mobrob_util import msg
+from mobrob_util.msg import ME439SensorsProcessed,ME439WheelSpeeds, ME439WheelDisplacements, IMU
 from geometry_msgs.msg import Twist, Pose2D
 
-from nav_msgs.msg import Odometry
-from transforms3d.euler import quat2euler
  
+wheel_width = rospy.get_param('/wheel_width_model')
+
 # Author: Addison Sears-Collins
 # https://automaticaddison.com
 # Description: Linear Quadratic Regulator example 
@@ -22,9 +23,9 @@ np.set_printoptions(suppress=True)
 class LQR():
     def __init__(self):
         rospy.init_node('lqr_node', anonymous=False)
-        self.vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
-        self.vel = Twist()
-        self.state_sub = rospy.Subscriber('/state', Pose2D, self.state_sub_callback, 10)  
+        self.vel_pub = rospy.Publisher('/cmd_vel', ME439WheelSpeeds, queue_size=10)
+        self.vel = ME439WheelSpeeds()
+        self.state_sub = rospy.Subscriber('/robot_pose_ekf', Pose2D, self.state_sub_callback, 10)  
 
         self.actual_state_x = np.array([0,0,0])
         self.timer_period = 0.05  # seconds
@@ -177,7 +178,7 @@ class LQR():
     
         # Desired state [x,y,yaw angle]
         # [meters, meters, radians]
-        desired_state_xf = np.array([-2.000,2.000,-np.pi/2])  
+        desired_state_xf = np.array([1.000,1.000,np.pi/4])  
         
         # A matrix
         # 3x3 matrix -> number of states x number of states matrix
@@ -237,9 +238,11 @@ class LQR():
                                     Q, R, A, B, dt) 
         
         print(f'Control Input = {optimal_control_input}')
-        self.vel.linear.x = optimal_control_input[0]
-        self.vel.angular.z = optimal_control_input[1]
-
+        v_c = optimal_control_input[0]
+        omega = optimal_control_input[1]
+        
+        self.vel.v_left = (2*v_c-omega*wheel_width)/2
+        self.vel.v_right = v_c+(omega*wheel_width)/2
         
         self.vel_pub.publish(self.vel)
         # We apply the optimal control to the robot
