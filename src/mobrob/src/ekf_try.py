@@ -40,7 +40,7 @@ d_right_previous = 0.
 
 
 # Rate to set how often the estimated "pose" is published
-f = 500.     # Hz 
+f = 250.     # Hz 
 class Ekf:
     def __init__ (self):
         #x_hat is x,y,theta, vr, vl
@@ -55,7 +55,7 @@ class Ekf:
         self.P_k_1 = 0.0*np.eye(5)     #initialize covariance matrix
         self.Q = 0.05*np.eye(5)  #process noise covariance 
         
-        self.gyrodT =1/300.0
+        self.gyrodT =1/250.0
 
         self.dt = 1/f
 
@@ -125,7 +125,7 @@ class Ekf:
             self.gyroTnow = float(msg_in.stamp.secs + msg_in.stamp.nsecs/(10**9))
             self.gyrodT = self.gyroTnow - self.gyroTprev
             self.gyro += -msg_in.yaw*self.gyrodT#*np.pi/180.0
-            print("gyro1: ", self.gyro)
+            #print("gyro1: ", self.gyro)
             self.gyroTprev = self.gyroTnow
         else:
             self.gyroTprev = float(msg_in.stamp.secs + msg_in.stamp.nsecs/(10**9))#float(time.time())
