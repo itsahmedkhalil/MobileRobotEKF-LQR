@@ -1,0 +1,10 @@
+<launch>
+  <rosparam command="load" file="$(find mobrob_util)/src/robot_info.yaml" />
+
+  <group ns="plant">
+    <node pkg="mobrob" name="robot_plant" type="wheel_control_node.py"/>
+    <node pkg="mobrob" name="IMU" type="BN0Node.py"/>
+  </group>
+
+</launch>
+
