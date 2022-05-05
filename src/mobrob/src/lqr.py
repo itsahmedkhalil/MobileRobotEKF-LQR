@@ -23,13 +23,13 @@ np.set_printoptions(suppress=True)
 class LQR():
     def __init__(self):
         rospy.init_node('lqr_node', anonymous=False)
-        self.vel_pub = rospy.Publisher('/cmd_vel', ME439WheelSpeeds, queue_size=10)
+        self.vel_pub = rospy.Publisher('/wheel_speeds_desired', ME439WheelSpeeds, queue_size=1)
         self.vel = ME439WheelSpeeds()
-        self.state_sub = rospy.Subscriber('/robot_pose_ekf', Pose2D, self.state_sub_callback, 10)  
+        self.state_sub = rospy.Subscriber('/robot_pose_ekf', Pose2D, self.state_sub_callback)  
 
         self.actual_state_x = np.array([0,0,0])
-        self.timer_period = 0.05  # seconds
-        self.timer = self.create_timer(self.timer_period, self.loop)
+        # self.timer_period = 0.05  # seconds
+        # self.timer = self.create_timer(self.timer_period, self.loop)
 
     def getB(self,yaw, deltat):
         """
@@ -162,7 +162,7 @@ class LQR():
         self.y_actual = msg.y
         self.yaw_actual = msg.theta
         #print(self.yaw_actual)
-
+        self.loop()
 
  
     def loop(self):
@@ -178,7 +178,7 @@ class LQR():
     
         # Desired state [x,y,yaw angle]
         # [meters, meters, radians]
-        desired_state_xf = np.array([1.000,1.000,np.pi/4])  
+        desired_state_xf = np.array([1.0,0.0,0.0])  
         
         # A matrix
         # 3x3 matrix -> number of states x number of states matrix
@@ -202,8 +202,8 @@ class LQR():
         # This matrix has positive values along the diagonal and 0s elsewhere.
         # We can target control inputs where we want low actuator effort 
         # by making the corresponding value of R large. 
-        R = np.array([[0.01,   0],  # Penalty for linear velocity effort
-                    [  0, 0.01]]) # Penalty for angular velocity effort
+        R = np.array([[1,   0],  # Penalty for linear velocity effort
+                    [  0, 1]]) # Penalty for angular velocity effort
     
         # Q matrix
         # The state cost matrix.
@@ -216,7 +216,7 @@ class LQR():
         # Q has positive values along the diagonal and zeros elsewhere.
         # Q enables us to target states where we want low error by making the 
         # corresponding value of Q large.
-        Q = np.array([[10.0, 0, 0],  # Penalize X position error 
+        Q = np.array([[1.0, 0, 0],  # Penalize X position error 
                                     [0, 1.0, 0],  # Penalize Y position error 
                                     [0, 0, 1.0]]) # Penalize YAW ANGLE heading error 
                     
@@ -244,30 +244,38 @@ class LQR():
         self.vel.v_left = (2*v_c-omega*wheel_width)/2
         self.vel.v_right = v_c+(omega*wheel_width)/2
         
-        self.vel_pub.publish(self.vel)
         # We apply the optimal control to the robot
         # so we can get a new actual (estimated) state.
         self.actual_state_x = self.state_space_model(A, self.actual_state_x, B, 
                                         optimal_control_input)  
-        if state_error_magnitude < 0.05:
-            self.vel.linear.x = 0.0
-            self.vel.angular.z = 0.0
+        if state_error_magnitude < 0.1:
+            self.vel.v_left = 0.0
+            self.vel.v_right = 0.0
             # Stop as soon as we reach the goal
             # Feel free to change this threshold value.
             # if state_error_magnitude < 0.01:
             #     print("\nGoal Has Been Reached Successfully!")
             #     break
-                
+        self.vel.v_left = np.clip(self.vel.v_left,0.0,0.4)                    
+        self.vel.v_right = np.clip(self.vel.v_right,0.0,0.4)                    
+
             #print()
+        self.vel_pub.publish(self.vel)
+
 
 # Entry point for the program
 if __name__ == "__main__":
     try:
         # Optional Variables    
-        max_linear_velocity = 3.0 # meters per second
+        max_linear_velocity = .4 # meters per second
         max_angular_velocity = 1.5708 # radians per second
         lqr = LQR()
+        
         rospy.spin()
 
     except rospy.ROSInterruptException: 
+        lqr.v_left = 0
+        lqr.v_right = 0
+        lqr.vel_pub.publish(lqr.vel)
+        rospy.loginfo("LQR node terminated.")    
         pass
