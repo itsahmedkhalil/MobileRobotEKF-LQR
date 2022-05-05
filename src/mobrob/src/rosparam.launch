@@ -1,0 +1,3 @@
+<launch>
+    <rosparam command="load" file="$(find mobrob_util)/src/robot_info.yaml" />
+</launch>
