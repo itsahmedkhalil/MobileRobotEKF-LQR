@@ -123,7 +123,7 @@ class Ekf:
         if self.counterG > 0:
             self.gyroTnow = float(msg_in.stamp.secs + msg_in.stamp.nsecs/(10**9))
             self.gyrodT = self.gyroTnow - self.gyroTprev
-            self.gyro += -msg_in.yaw*self.gyrodT#*np.pi/180.0
+            self.gyro += msg_in.yaw*self.gyrodT#*np.pi/180.0
             #print("gyro1: ", self.gyro)
             self.gyroTprev = self.gyroTnow
         else:
