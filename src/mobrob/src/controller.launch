@@ -16,10 +16,10 @@
 
     <group ns="robot_control">
         <!-- first a "dead reckoning" node -->
-        <node pkg="mobrob" name="lqr_DR" type="lqr_controller.py" />
-        <!-- <node pkg="mobrob" name="lqr_DR" type="lqr.py">
-            <remap from="/robot_pose_ekf" to="/robot_pose_estimated"/>
-        </node> -->
+        <!-- <node pkg="mobrob" name="lqr_DR" type="lqr_controller.py" /> -->
+        <node pkg="mobrob" name="lqr_EKF" type="lqr_controller.py">
+            <!-- <remap from="/robot_pose_estimated" to="/robot_pose_ekf"/> -->
+        </node>
     </group>
 
     <group ns="robot_animator">

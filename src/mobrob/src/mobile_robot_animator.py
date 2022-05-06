@@ -5,14 +5,25 @@
 # 2018-10-11
 # Updated 2021-10-19
 # =============================================================================
-
+import sys
+import os
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import numpy as np 
 import rospy
 import traceback 
 import me439_mobile_robot_class_v00 as m439rbt
+from std_msgs.msg import Float32MultiArray
 from geometry_msgs.msg import Pose2D
+
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
+                "/../../PathPlanning/CubicSpline/")
+
+try:
+    import cubic_spline_planner
+except ImportError:
+    raise
 
 #==============================================================================
 # # Get parameters from rosparam
@@ -21,7 +32,7 @@ wheel_width = rospy.get_param('/wheel_width_actual')
 body_length = rospy.get_param('/body_length')
 wheel_diameter = rospy.get_param('/wheel_diameter_actual')
 wheel_radius = wheel_diameter/2.0
-
+trajectory = [0,0]
 
 def listener(): 
     # =============================================================================
@@ -35,11 +46,17 @@ def listener():
     robot = m439rbt.robot(wheel_width, body_length, wheel_radius)
     
     sub_robot_pose = rospy.Subscriber('/robot_pose_simulated', Pose2D, set_robot_pose, robot)
+    sub_trajectory = rospy.Subscriber('/trajectory', Float32MultiArray, set_trajectory)
     
     # Call the animation function. This has a loop in it, so it won't exit.
     animate_robot(robot)
     
     
+def set_trajectory(msg_in):
+    global trajectory
+    trajectory = msg_in.data
+
+
 def set_robot_pose(msg_in, robot):
     robot.r_center_world = np.array([msg_in.x, msg_in.y])
     robot.theta= msg_in.theta
@@ -47,11 +64,18 @@ def set_robot_pose(msg_in, robot):
     
     
 def animate_robot(robot):
+    global trajectory
+
     # Set up the Animation plot
     fig1= plt.figure()
     
+    ax = [0.0, 0.0, 1]
+    ay = [0.0, 1, 1]   
+    cx, cy, _, _, _ = cubic_spline_planner.calc_spline_course(ax, ay, ds=0.1)
     robotoutline, = plt.plot([], [], 'r-')
     robotpath, = plt.plot([],[], 'b--')
+    trajectory, = plt.plot(cx, cy, 'k--')
+
     plt.axis('equal')   # Note for some reason this has to come before the "xlim" and "ylim" or an explicit axis limits command "plt.axis([xmin,xmax,ymin,ymax])"
     plt.xlim(-1, 1)
     plt.ylim(-1, 1)

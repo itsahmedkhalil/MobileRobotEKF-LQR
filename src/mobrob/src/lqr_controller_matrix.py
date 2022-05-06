@@ -50,12 +50,9 @@ class LQR():
         self.desired_state_pub = rospy.Publisher('/desired_state', Float32MultiArray, queue_size=1)
         self.desired_state_msg = Float32MultiArray()
 
-        self.trajectory_pub = rospy.Publisher('/trajectory', Float32MultiArray, queue_size=1)
-        self.trajectory_msg = Float32MultiArray()
-
         """######################################################################"""
-        self.state_sub = rospy.Subscriber('/robot_pose_estimated', Pose2D, self.state_sub_callback)  
-        self.actual_state_x = np.array([0,0,0])
+        self.state_sub = rospy.Subscriber('/robot_state', Float32MultiArray, self.state_sub_callback)  
+        self.actual_state_x = np.array([0,0,0,0,0])
 
         ax = [0.0, 0.0, 1]
         ay = [0.0, 1, 1]        
@@ -67,7 +64,7 @@ class LQR():
         self.goal_dis = 0.3
 
         self.cx, self.cy, self.cyaw, self.ck, self.s = cubic_spline_planner.calc_spline_course(
-        ax, ay, ds=0.05)
+        ax, ay, ds=0.1)
         target_speed = 1.0 / 3.6  # simulation parameter km/h -> m/s
 
         self.sp = calc_speed_profile(self.cx, self.cy, cyaw=self.cyaw, target_speed=target_speed)
@@ -75,11 +72,6 @@ class LQR():
         self.v_c = 0.3
         self.ind, self.e = self.calc_nearest_index(self.actual_state_x, self.cx, self.cy, self.cyaw)
         self.total_ind = len(self.cx)
-        self.total_err_lqr = 0
-
-        self.trajectory_msg.data = np.array([self.cx, self.cy])
-        self.trajectory_pub.publish(self.trajectory_msg)
-
 
 
 
@@ -103,26 +95,7 @@ class LQR():
                 break
             x = x_next
 
-        return x_next
-
-    def getB(self,yaw, deltat):
-        """
-        Calculates and returns the B matrix
-        3x2 matix ---> number of states x number of control inputs
-    
-        Expresses how the state of the system [x,y,yaw] changes
-        from t-1 to t due to the control commands (i.e. control inputs).
-        
-        :param yaw: The yaw angle (rotation angle around the z axis) in radians 
-        :param deltat: The change in time from timestep t-1 to t in seconds
-        
-        :return: B matrix ---> 3x2 NumPy array
-        """
-        B = np.array([  [np.cos(yaw)*deltat, 0],
-                        [np.sin(yaw)*deltat, 0],
-                        [0, deltat]])
-        return B
- 
+        return x_next 
  
     def state_space_model(self,A, state_t_minus_1, B, control_input_t_minus_1):
         """
@@ -147,8 +120,8 @@ class LQR():
         """
         # These next 6 lines of code which place limits on the angular and linear 
         # velocities of the robot car can be removed if you desire.
-        control_input_t_minus_1[0] = np.clip(control_input_t_minus_1[0],-max_linear_velocity,max_linear_velocity)
-        control_input_t_minus_1[1] = np.clip(control_input_t_minus_1[1],-max_angular_velocity,max_angular_velocity)
+        control_input_t_minus_1[0] = np.clip(control_input_t_minus_1[0],-max_linear_velocity_r ,max_linear_velocity_r )
+        control_input_t_minus_1[1] = np.clip(control_input_t_minus_1[1],-max_linear_velocity_l ,max_linear_velocity_l )
         state_estimate_t = (A @ state_t_minus_1) + (B @ control_input_t_minus_1) 
                 
         return state_estimate_t
@@ -175,18 +148,25 @@ class LQR():
         """
         Callback function for the subscriber to the /mobrob/odom topic.
         """
-        self.x_actual = msg.x
-        self.y_actual = msg.y
-        self.yaw_actual = msg.theta+np.pi/2
-        self.actual_state_x = np.array([self.x_actual, self.y_actual, self.yaw_actual])
+        self.x_actual = msg.data[0]
+        self.y_actual = msg.data[1]
+        self.yaw_actual = msg.data[2]+np.pi/2
+        self.v_r = msg.data[3]
+        self.v_l = msg.data[4]
+        self.actual_state_x = np.array([self.x_actual, self.y_actual, self.yaw_actual, self.v_r, self.v_l])
         self.main()
 
 
     def controller(self):
-
-        self.A = np.array([     [1.0,  0,   0],
-                                [  0,1.0,   0],
-                                [  0,  0, 1.0]])
+        theta = self.actual_state_x[2]
+        dt = self.dt
+        self.A = np.array([ #state transition matrix
+            [1,0,0 , -(1/2)*np.sin(theta)*dt, -(1/2)*np.sin(theta)*dt ], #encoder
+            [0,1,0 , (1/2)*np.cos(theta)*dt, (1/2)*np.cos(theta)*dt  ], #encoder
+            [0,0,1 , (dt/wheel_width)     , -(dt/wheel_width)     ], #theta
+            [0,0,0 ,                        1,                          0],
+            [0,0,0 ,                        0,                          1],
+            ]) 
         
         # R matrix
         # The control input cost matrix
@@ -217,9 +197,13 @@ class LQR():
                                 [0, 1.0, 0],  # Penalize Y position error 
                                 [0, 0, 1.0]]) # Penalize YAW ANGLE heading error 
 
-        self.B = np.array([     [np.cos(self.actual_state_x[2])*self.dt, 0],
-                                [np.sin(self.actual_state_x[2])*self.dt, 0],
-                                [0                  , self.dt]])
+        self.B = np.array([      #input matrix
+            [0,0],
+            [0,0],
+            [0,0],
+            [1.,0],
+            [0,1.],
+            ])
         
         K, _, _ = self.dlqr(self.A, self.B, self.Q, self.R)
 
@@ -270,9 +254,7 @@ class LQR():
             print(f'Desired State = {self.desired_state_xf}')
             
             state_error = self.actual_state_x - self.desired_state_xf
-            state_error_magnitude = np.linalg.norm(state_error)   
-            state_error_xy = np.linalg.norm(state_error[:1])    
-
+            state_error_magnitude = np.linalg.norm(state_error)     
             print(f'State Error Magnitude = {state_error_magnitude}')
             
             # LQR returns the optimal control input
@@ -291,16 +273,16 @@ class LQR():
             # so we can get a new actual (estimated) state.
             self.actual_state_x = self.state_space_model(self.A, self.actual_state_x, self.B, 
                                             optimal_control_input)  
-            # if state_error_magnitude < 0.1:
-            #     self.vel.v_left = 0.0
-            #     self.vel.v_right = 0.0
+            if state_error_magnitude < 0.1:
+                self.vel.v_left = 0.0
+                self.vel.v_right = 0.0
                 # Stop as soon as we reach the goal
                 # Feel free to change this threshold value.
                 # if state_error_magnitude < 0.01:
                 #     print("\nGoal Has Been Reached Successfully!")
                 #     break
-            self.vel.v_left = np.clip(self.vel.v_left,-0.2,0.6)                    
-            self.vel.v_right = np.clip(self.vel.v_right,-0.2,0.6)                    
+            self.vel.v_left = np.clip(self.vel.v_left,-0.2,0.3)                    
+            self.vel.v_right = np.clip(self.vel.v_right,-0.2,0.3)                    
 
                 #print()
             self.actual_state_msg.data = self.actual_state_x
@@ -308,26 +290,21 @@ class LQR():
 
             self.desired_state_msg.data = self.desired_state_xf
             self.desired_state_pub.publish(self.desired_state_msg)
-            self.total_err_lqr+=state_error_xy
-
-            self.vel_pub.publish(self.vel)
-            self.error_pub.publish(self.total_err_lqr)
 
         else:
             self.vel.v_left = 0.0
             self.vel.v_right = 0.0
-            self.vel_pub.publish(self.vel)
-            self.error_pub.publish(self.total_err_lqr)
-            rospy.sleep(1000.)
 
-            
+        self.vel_pub.publish(self.vel)
+        self.error_pub.publish(state_error_magnitude)
+
 
 # Entry point for the program
 if __name__ == "__main__":
     try:
         # Optional Variables    
-        max_linear_velocity = .8 # meters per second
-        max_angular_velocity = 1.5708 # radians per second
+        max_linear_velocity_r = .4 # meters per second
+        max_linear_velocity_l = .4 # meters per second
         lqr = LQR()
         rospy.spin()
 

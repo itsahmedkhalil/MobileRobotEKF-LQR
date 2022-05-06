@@ -12,7 +12,7 @@ import rospy
 import numpy as np
 import traceback 
 from geometry_msgs.msg import Pose2D, Twist
-from std_msgs.msg import Float32
+from std_msgs.msg import Float32,Float32MultiArray
 import time
 from mobrob_util.msg import ME439SensorsProcessed,ME439WheelSpeeds, ME439WheelDisplacements, IMU
 #==============================================================================
@@ -44,7 +44,7 @@ f = 250.     # Hz
 class Ekf:
     def __init__ (self):
         #x_hat is x,y,theta, vr, vl
-        self.x_hat_k_1 = np.array([[0., 0, 0, 0, 0]]).T     #estimated state column vector
+        self.x_hat_k_1 = np.array([[0.0, 0.0, 0.0, 0.0, 0.0]]).T     #estimated state column vector
         self.B = np.array([      #input matrix
             [0,0],
             [0,0],
@@ -58,7 +58,6 @@ class Ekf:
         self.gyrodT =1/250.0
 
         self.dt = 1/f
-
 
         self.H_enc = np.array([
             [0,0,0,            1.0,             0],
@@ -194,7 +193,8 @@ if __name__ == '__main__':
 
         pub_robot_pose_estimated = rospy.Publisher('/robot_pose_ekf', Pose2D, queue_size = 1)
         robot_pose_estimated_message = Pose2D()
-
+        pub_robot_state = rospy.Publisher('/robot_state', Float32MultiArray, queue_size = 1)
+        robot_state_message = Float32MultiArray()
         # =============================================================================
         #     # Rate object to set a publication rate
         # =============================================================================
@@ -257,12 +257,13 @@ if __name__ == '__main__':
             # P_k_new = (np.identity(5) - K_2@ek.H_enc)@P_k_new #P_k - K@ek.H@P_k
 
 
-
+            robot_state_message.data = [x_k_new[0][0],x_k_new[1][0],x_k_new[2][0],x_k_new[3][0],x_k_new[4][0]]
 
             robot_pose_estimated_message.x = x_k_new[0][0]
             robot_pose_estimated_message.y = x_k_new[1][0]
             robot_pose_estimated_message.theta = x_k_new[2][0]
             pub_robot_pose_estimated.publish(robot_pose_estimated_message)
+            pub_robot_state.publish(robot_state_message)
             # Log the info to the ROS log. 
             #rospy.loginfo(x_k_new)
             ek.x_hat_k_1 = x_k_new
