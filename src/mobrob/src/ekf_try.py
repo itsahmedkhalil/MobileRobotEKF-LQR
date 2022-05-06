@@ -123,7 +123,7 @@ class Ekf:
         if self.counterG > 0:
             self.gyroTnow = float(msg_in.stamp.secs + msg_in.stamp.nsecs/(10**9))
             self.gyrodT = self.gyroTnow - self.gyroTprev
-            self.gyro += msg_in.yaw*self.gyrodT#*np.pi/180.0
+            self.gyro += -msg_in.yaw*self.gyrodT#*np.pi/180.0
             #print("gyro1: ", self.gyro)
             self.gyroTprev = self.gyroTnow
         else:
@@ -239,9 +239,9 @@ if __name__ == '__main__':
             P_k_new = (np.identity(5) - K_1@ek.H_enc)@P_k #P_k - K@ek.H@P_k
 
 
-            # K_2 = P_k_new@ek.H_gyro.T@np.linalg.inv(ek.H_gyro@P_k@ek.H_gyro.T + ek.R_gyro)
-            # x_k_new = x_k_new + K_2@(z_k_gyro - ek.H_gyro@x_k_new)
-            # P_k_new = (np.identity(5) - K_2@ek.H_gyro)@P_k_new #P_k - K@ek.H@P_k
+            K_2 = P_k_new@ek.H_gyro.T@np.linalg.inv(ek.H_gyro@P_k@ek.H_gyro.T + ek.R_gyro)
+            x_k_new = x_k_new + K_2@(z_k_gyro - ek.H_gyro@x_k_new)
+            P_k_new = (np.identity(5) - K_2@ek.H_gyro)@P_k_new #P_k - K@ek.H@P_k
 
 
 
