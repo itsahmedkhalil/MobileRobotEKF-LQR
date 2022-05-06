@@ -8,7 +8,20 @@ from mobrob_util import msg
 from std_msgs.msg import Float32,Float32MultiArray
 from mobrob_util.msg import ME439SensorsProcessed,ME439WheelSpeeds, ME439WheelDisplacements, IMU
 from geometry_msgs.msg import Twist, Pose2D
+from utils import *
+import math
+import sys
+import os
+import matplotlib.pyplot as plt
+import scipy.linalg as la
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
+                "/../../PathPlanning/CubicSpline/")
+
+try:
+    import cubic_spline_planner
+except ImportError:
+    raise
  
 wheel_width = rospy.get_param('/wheel_width_model')
 
@@ -40,8 +53,47 @@ class LQR():
         """######################################################################"""
         self.state_sub = rospy.Subscriber('/robot_pose_estimated', Pose2D, self.state_sub_callback)  
         self.actual_state_x = np.array([0,0,0])
-        # self.timer_period = 0.05  # seconds
-        # self.timer = self.create_timer(self.timer_period, self.loop)
+
+        ax = [0.0, 6.0, 12.5, 10.0, 17.5, 20.0, 25.0]
+        ay = [0.0, -3.0, -5.0, 6.5, 3.0, 0.0, 0.0]
+
+        self.desired_traj = compute_traj(ax,ay)
+        self.goal = self.desired_traj[-1,:] # Coordinates of the goal
+        self.goal_dis = 0.3
+
+        self.cx, self.cy, self.cyaw, self.ck, self.s = cubic_spline_planner.calc_spline_course(
+        ax, ay, ds=0.1)
+        target_speed = 1.0 / 3.6  # simulation parameter km/h -> m/s
+
+        self.sp = calc_speed_profile(self.cx, self.cy, cyaw=self.cyaw, target_speed=target_speed)
+        self.stop_speed = 0.25
+        self.v_c = 0.3
+        self.ind, self.e = self.calc_nearest_index(self.actual_state_x, self.cx, self.cy, self.cyaw)
+
+
+
+
+    def pi_2_pi(self,angle):
+        return (angle + math.pi) % (2 * math.pi) - math.pi
+
+
+    def solve_dare(self,A, B, Q, R):
+        """
+        solve a discrete time_Algebraic Riccati equation (DARE)
+        """
+        x = Q
+        x_next = Q
+        max_iter = 150
+        eps = 0.01
+
+        for i in range(max_iter):
+            x_next = A.T @ x @ A - A.T @ x @ B @ \
+                    la.inv(R + B.T @ x @ B) @ B.T @ x @ A + Q
+            if (abs(x_next - x)).max() < eps:
+                break
+            x = x_next
+
+        return x_next
 
     def getB(self,yaw, deltat):
         """
@@ -57,8 +109,8 @@ class LQR():
         :return: B matrix ---> 3x2 NumPy array
         """
         B = np.array([  [np.cos(yaw)*deltat, 0],
-                                        [np.sin(yaw)*deltat, 0],
-                                        [0, deltat]])
+                        [np.sin(yaw)*deltat, 0],
+                        [0, deltat]])
         return B
  
  
@@ -91,76 +143,23 @@ class LQR():
                 
         return state_estimate_t
      
-    def lqr(self,actual_state_x, desired_state_xf, Q, R, A, B, dt):
+
+    def dlqr(self,A, B, Q, R):
+        """Solve the discrete time lqr controller.
+        x[k+1] = A x[k] + B u[k]
+        cost = sum x[k].T*Q*x[k] + u[k].T*R*u[k]
+        # ref Bertsekas, p.151
         """
-        Discrete-time linear quadratic regulator for a nonlinear system.
-    
-        Compute the optimal control inputs given a nonlinear system, cost matrices, 
-        current state, and a final state.
-        
-        Compute the control variables that minimize the cumulative cost.
-    
-        Solve for P using the dynamic programming method.
-    
-        :param actual_state_x: The current state of the system 
-            3x1 NumPy Array given the state is [x,y,yaw angle] --->
-            [meters, meters, radians]
-        :param desired_state_xf: The desired state of the system
-            3x1 NumPy Array given the state is [x,y,yaw angle] --->
-            [meters, meters, radians]   
-        :param Q: The state cost matrix
-            3x3 NumPy Array
-        :param R: The input cost matrix
-            2x2 NumPy Array
-        :param dt: The size of the timestep in seconds -> float
-    
-        :return: u_star: Optimal action u for the current state 
-            2x1 NumPy Array given the control input vector is
-            [linear velocity of the car, angular velocity of the car]
-            [meters per second, radians per second]
-        """
-        # We want the system to stabilize at desired_state_xf.
-        x_error = actual_state_x - desired_state_xf
-    
-        # Solutions to discrete LQR problems are obtained using the dynamic 
-        # programming method.
-        # The optimal solution is obtained recursively, starting at the last 
-        # timestep and working backwards.
-        # You can play with this number
-        N = 50
-    
-        # Create a list of N + 1 elements
-        P = [None] * (N + 1)
-        
-        Qf = Q
-    
-        # LQR via Dynamic Programming
-        P[N] = Qf
-    
-        # For i = N, ..., 1
-        for i in range(N, 0, -1):
-    
-            # Discrete-time Algebraic Riccati equation to calculate the optimal 
-            # state cost matrix
-            P[i-1] = Q + A.T @ P[i] @ A - (A.T @ P[i] @ B) @ np.linalg.pinv(
-                R + B.T @ P[i] @ B) @ (B.T @ P[i] @ A)      
-    
-        # Create a list of N elements
-        K = [None] * N
-        u = [None] * N
-    
-        # For i = 0, ..., N - 1
-        for i in range(N):
-    
-            # Calculate the optimal feedback gain K
-            K[i] = -np.linalg.pinv(R + B.T @ P[i+1] @ B) @ B.T @ P[i+1] @ A
-    
-            u[i] = K[i] @ x_error
-    
-        # Optimal control input is u_star
-        u_star = u[N-1]
-    
-        return u_star
+
+        # first, try to solve the ricatti equation
+        X = self.solve_dare(A, B, Q, R)
+
+        # compute the LQR gain
+        K = la.inv(B.T @ X @ B + R) @ (B.T @ X @ A)
+
+        eig_result = la.eig(A - B @ K)
+
+        return K, X, eig_result[0]
     
     def state_sub_callback(self, msg):
         """
@@ -169,36 +168,16 @@ class LQR():
         self.x_actual = msg.x
         self.y_actual = msg.y
         self.yaw_actual = msg.theta+np.pi/2
-        #print(self.yaw_actual)
-        self.loop()
+        self.actual_state_x = np.array([self.x_actual, self.y_actual, self.yaw_actual])
+        self.main()
 
- 
-    def loop(self):
+
+    def controller(self):
+
+        self.A = np.array([     [1.0,  0,   0],
+                                [  0,1.0,   0],
+                                [  0,  0, 1.0]])
         
-        # Let the time interval be 1.0 seconds
-        dt = 0.1
-        
-        # Actual state
-        # Our robot starts out at the origin (x=0 meters, y=0 meters), and 
-        # the yaw angle is 0 radians. 
-        #actual_state_x = np.array([0,0,0])
-        self.actual_state_x = np.array([self.x_actual,self.y_actual,self.yaw_actual]) 
-    
-        # Desired state [x,y,yaw angle]
-        # [meters, meters, radians]
-        desired_state_xf = np.array([1.0,1.0,np.pi/4])  
-        
-        # A matrix
-        # 3x3 matrix -> number of states x number of states matrix
-        # Expresses how the state of the system [x,y,yaw] changes 
-        # from t-1 to t when no control command is executed.
-        # Typically a robot on wheels only drives when the wheels are told to turn.
-        # For this case, A is the identity matrix.
-        # Note: A is sometimes F in the literature.
-        A = np.array([  [1.0,  0,   0],
-                                        [  0,1.0,   0],
-                                        [  0,  0, 1.0]])
-    
         # R matrix
         # The control input cost matrix
         # Experiment with different R matrices
@@ -210,8 +189,8 @@ class LQR():
         # This matrix has positive values along the diagonal and 0s elsewhere.
         # We can target control inputs where we want low actuator effort 
         # by making the corresponding value of R large. 
-        R = np.array([[0.1,   0],  # Penalty for linear velocity effort
-                    [  0, 0.1]]) # Penalty for angular velocity effort
+        self.R = np.array([ [0.1,   0],  # Penalty for linear velocity effort
+                            [  0, 0.1]]) # Penalty for angular velocity effort
     
         # Q matrix
         # The state cost matrix.
@@ -224,37 +203,79 @@ class LQR():
         # Q has positive values along the diagonal and zeros elsewhere.
         # Q enables us to target states where we want low error by making the 
         # corresponding value of Q large.
-        Q = np.array([[1.0, 0, 0],  # Penalize X position error 
-                                    [0, 1.0, 0],  # Penalize Y position error 
-                                    [0, 0, 1.0]]) # Penalize YAW ANGLE heading error 
-                    
-        # Launch the robot, and have it move to the desired goal destination
-        #for i in range(100):
-        #print(f'iteration = {i} seconds')
-        print(f'Current State = {self.actual_state_x}')
-        print(f'Desired State = {desired_state_xf}')
+        self.Q = np.array([     [1.0, 0, 0],  # Penalize X position error 
+                                [0, 1.0, 0],  # Penalize Y position error 
+                                [0, 0, 1.0]]) # Penalize YAW ANGLE heading error 
+
+        self.B = np.array([     [np.cos(self.actual_state_x[2])*self.dt, 0],
+                                [np.sin(self.actual_state_x[2])*self.dt, 0],
+                                [0                  , self.dt]])
         
-        state_error = self.actual_state_x - desired_state_xf
+        K, _, _ = self.dlqr(self.A, self.B, self.Q, self.R)
+
+        x_error = self.actual_state_x - self.desired_state_xf
+
+        ustar = -K @ x_error
+
+        return ustar
+    
+
+    def calc_nearest_index(self, state, cx, cy, cyaw):
+        dx = [state[0] - icx for icx in cx]
+        dy = [state[1] - icy for icy in cy]
+
+        d = [idx ** 2 + idy ** 2 for (idx, idy) in zip(dx, dy)]
+
+        mind = min(d)
+
+        ind = d.index(mind)
+
+        mind = math.sqrt(mind)
+
+        dxl = cx[ind] - state[0]
+        dyl = cy[ind] - state[1]
+
+        angle = self.pi_2_pi(cyaw[ind] - math.atan2(dyl, dxl))
+        if angle < 0:
+            mind *= -1
+
+        return ind, mind
+
+
+    def main(self):
+
+        # Let the time interval be 1.0 seconds
+        self.dt = 0.1
+
+
+        if abs(self.v_c) < self.stop_speed:
+            self.ind += 1
+
+        self.desired_state_xf = np.array([self.cx[self.ind], self.cy[self.ind], self.cyaw[self.ind]])  
+        #replaced desired with the closest point on the trajectory
+
+        print(f'Current State = {self.actual_state_x}')
+        print(f'Desired State = {self.desired_state_xf}')
+        
+        state_error = self.actual_state_x - self.desired_state_xf
         state_error_magnitude = np.linalg.norm(state_error)     
         print(f'State Error Magnitude = {state_error_magnitude}')
         
-        B = self.getB(self.actual_state_x[2], dt)
-        
         # LQR returns the optimal control input
-        optimal_control_input = self.lqr(self.actual_state_x, 
-                                    desired_state_xf, 
-                                    Q, R, A, B, dt) 
+        optimal_control_input = self.controller() 
         
         print(f'Control Input = {optimal_control_input}')
-        v_c = optimal_control_input[0]
+        self.v_c = optimal_control_input[0]
         omega = optimal_control_input[1]
         
-        self.vel.v_left = (2*v_c-omega*wheel_width)/2
-        self.vel.v_right = v_c+(omega*wheel_width)/2
+        self.vel.v_left = (2*self.v_c-omega*wheel_width)/2
+        self.vel.v_right = self.v_c+(omega*wheel_width)/2
+       
         
+       
         # We apply the optimal control to the robot
         # so we can get a new actual (estimated) state.
-        self.actual_state_x = self.state_space_model(A, self.actual_state_x, B, 
+        self.actual_state_x = self.state_space_model(self.A, self.actual_state_x, self.B, 
                                         optimal_control_input)  
         if state_error_magnitude < 0.1:
             self.vel.v_left = 0.0
@@ -271,7 +292,7 @@ class LQR():
         self.actual_state_msg.data = self.actual_state_x
         self.actual_state_pub.publish(self.actual_state_msg)
 
-        self.desired_state_msg.data = desired_state_xf
+        self.desired_state_msg.data = self.desired_state_xf
         self.desired_state_pub.publish(self.desired_state_msg)
 
         self.vel_pub.publish(self.vel)

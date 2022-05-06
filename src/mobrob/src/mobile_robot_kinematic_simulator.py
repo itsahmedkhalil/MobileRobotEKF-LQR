@@ -64,7 +64,7 @@ def simulate():
 # =============================================================================
     while not rospy.is_shutdown():
         # Count to n here to prevent publishing too often
-        for ii in range(n): 
+        for i in range(n): 
             t_current = rospy.get_rostime()
             dt = (t_current - t_previous).to_sec()
             t_previous = t_current          # save the current time as the previous time, for the next use. 
@@ -112,11 +112,6 @@ def set_wheel_speed_targets(msg_in, robot):
     vel_gazebo.angular.z = (msg_in.v_right - msg_in.v_left)/wheel_width
     pub_vel_gazebo.publish(vel_gazebo)
 
-    
-    
-    
-    
-    
     
 if __name__ == '__main__':
     try:
