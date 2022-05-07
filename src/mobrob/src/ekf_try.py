@@ -40,7 +40,7 @@ d_right_previous = 0.
 
 
 # Rate to set how often the estimated "pose" is published
-f = 250.     # Hz 
+f = 10.     # Hz 
 class Ekf:
     def __init__ (self):
         #x_hat is x,y,theta, vr, vl
@@ -65,11 +65,11 @@ class Ekf:
         ])  #state to measurement matrix for encoder  
 
         self.H_gyro = np.array([
-            [0,0,0.0,self.dt/wheel_width,             -self.dt/wheel_width],
+            [0,0,0.0,1/wheel_width,             -1/wheel_width],
         ])          #state to measurement matrix for gyro               
 
         self.R_enc = 0.0005*np.eye(2)  #measurement noise covariance for encoder
-        self.R_gyro = 0.05*np.eye(1)  #measurement noise covariance for gyro
+        self.R_gyro = (0.0023635210668727256**2)*np.eye(1)  #measurement noise covariance for gyro
         self.e0 = 0
         self.e0_prev = 0
         self.e1 = 0
@@ -123,7 +123,8 @@ class Ekf:
         if self.counterG > 0:
             self.gyroTnow = float(msg_in.stamp.secs + msg_in.stamp.nsecs/(10**9))
             self.gyrodT = self.gyroTnow - self.gyroTprev
-            self.gyro += -msg_in.yaw*self.gyrodT#*np.pi/180.0
+            #self.gyro += -msg_in.yaw*self.gyrodT#*np.pi/180.0
+            self.gyro = -msg_in.yaw
             #print("gyro1: ", self.gyro)
             self.gyroTprev = self.gyroTnow
         else:
@@ -239,7 +240,7 @@ if __name__ == '__main__':
             P_k_new = (np.identity(5) - K_1@ek.H_enc)@P_k #P_k - K@ek.H@P_k
 
 
-            K_2 = P_k_new@ek.H_gyro.T@np.linalg.inv(ek.H_gyro@P_k@ek.H_gyro.T + ek.R_gyro)
+            K_2 = P_k_new@ek.H_gyro.T@np.linalg.inv(ek.H_gyro@P_k_new@ek.H_gyro.T + ek.R_gyro)
             x_k_new = x_k_new + K_2@(z_k_gyro - ek.H_gyro@x_k_new)
             P_k_new = (np.identity(5) - K_2@ek.H_gyro)@P_k_new #P_k - K@ek.H@P_k
 
