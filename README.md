@@ -1,29 +1,68 @@
-# ME439MobileRobotSimulation
-#### Install Ros2 foxy ####
-For Ubuntu 20.04: https://docs.ros.org/en/foxy/Installation/Ubuntu-Install-Debians.html
+# ME439MobileRobotEKF
 
-#### Build ####
-`colcon build`
+## Mobile Robot Setup on Raspberry Pi
 
-### Install Gazebo ###
-`sudo apt install gazebo11 libgazebo11 libgazebo11-dev`
+### Clone the code from the GitHub repository
+`$ git clone https://github.com/mohsafwat23/ME439MobileRobotEKF.git`
 
-`sudo apt install ros-foxy-gazebo-ros-pkgs ros-foxy-cv-bridge`
+#### Build the project
+`$ cd ME439MobileRobotEKF && catkin_make`
 
-#### Source Enviroment and Gazebo ####
-`source install/setup.bash`
+### Create bashrc commands to run the project easily
 
-`export GAZEBO_MODEL_PATH=${PWD}/install/simulation/share/simulation/models`
+#### Edit the bashrc file 
+`$ nano ~/.bashrc`
 
-`source /usr/share/gazebo/setup.sh`
+#### Add the following commands to the bashrc file
 
-#### Velocity publisher example command line ####
-`ros2 topic pub /mobrob/cmd_vel geometry_msgs/Twist "{linear: {x: 0.1, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}"`
+`sudoLoad() {
+        cd ~/ClonedRepos/RaspberryPiKernelEncoder && sudo make load && cd ~/ME439MobileRobotEKF/
+}`
 
-#### ROS1 Bridge ####
-Tutorial: https://www.theconstructsim.com/ros2-qa-217-how-to-mix-ros1-and-ros2-packages/
+and 
 
-`ros2 run ros1_bridge dynamic_bridge --bridge-all-topics`
+`src() {
+        source devel/setup.bash
+}`
 
-#### Kill gazebo server if it crashes ####
-`killall -9 gzserver`
+#### Save and exit
+` cntrl-s + cntrl-x`
+#### Source the bashrc file
+`$ source ~/.bashrc`
+
+### Install ROS libraries for sensors
+
+#### Install MPU6050 library: https://learn.adafruit.com/mpu6050-6-dof-accelerometer-and-gyro/python-and-circuitpython
+`$ sudo pip3 install adafruit-circuitpython-mpu6050`
+
+#### Install BNO055 library: https://learn.adafruit.com/adafruit-bno055-absolute-orientation-sensor/python-circuitpython
+`$ sudo pip3 install adafruit-circuitpython-bno055`
+
+## Off-board Controller Setup on Linux Machine
+
+### Clone the code from the GitHub repository
+`$ git clone https://github.com/mohsafwat23/ME439MobileRobotEKF.git`
+
+#### Build the project
+`$ cd ME439MobileRobotEKF && catkin_make`
+
+## Setup ROS Networking
+### Use this link to setup ROS Networking: https://razbotics.wordpress.com/2018/01/23/ros-distributed-systems/
+
+
+## Running the project
+
+### Run the project on the Raspberry Pi
+#### Load the encoders on the Raspberry Pi
+`$ cd ~/ME439MobileRobotEKF && sudoLoad`
+#### Enter as root user
+`$ sudo su `
+#### Source and run the launch file
+`$ src && roslaunch mobrob plant.launch`
+
+### Run the project on the Linux Machine
+
+#### Source the project
+`$ cd ~/ME439MobileRobotEKF && source devel/setup.bash`
+#### Run the launch file
+`roslaunch mobrob controller.launch`
