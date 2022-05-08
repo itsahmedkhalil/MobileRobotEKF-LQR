@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # =============================================================================
-# Peter G. Adamczyk 
+# Peter G. Adamczyk, Ahmed Khalil, Mohamed Safwat
 # 2018-10-11
 # Updated 2021-10-19
 # =============================================================================
@@ -15,15 +15,7 @@ import traceback
 import me439_mobile_robot_class_v00 as m439rbt
 from std_msgs.msg import Float32MultiArray
 from geometry_msgs.msg import Pose2D
-
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
-                "/../../PathPlanning/CubicSpline/")
-
-try:
-    import cubic_spline_planner
-except ImportError:
-    raise
+from cubic_spline_planner import *
 
 #==============================================================================
 # # Get parameters from rosparam
@@ -74,7 +66,7 @@ def animate_robot(robot):
 
     # ax = np.array([0.0, 1.0, 1.25 ,1.5, 2.0, 1.5, 0.0])
     # ay = np.array([0.0, 0.5, 0.4, -0.5, 0.5, 1.0, 0.0])
-    cx, cy, _, _, _ = cubic_spline_planner.calc_spline_course(ax, ay, ds=0.1)
+    cx, cy, _, _, _ = calc_spline_course(ax, ay, ds=0.1)
     robotoutline, = plt.plot([], [], 'r-')
     robotpath, = plt.plot([],[], 'b--')
     trajectory, = plt.plot(cx, cy, 'k--')

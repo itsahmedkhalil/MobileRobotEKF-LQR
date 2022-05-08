@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# Author: Ahmed Khalil, Mohamed Safwat
+
+
 import numpy as np
 import rospy
 import serial
@@ -19,14 +22,6 @@ from transforms3d.euler import quat2euler
 import transformations
 from rospy import Time
 import time
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
-                "/../../PathPlanning/CubicSpline/")
-
-try:
-    import cubic_spline_planner
-except ImportError:
-    raise
  
 wheel_width = 0.151#rospy.get_param('/wheel_width_model')
 

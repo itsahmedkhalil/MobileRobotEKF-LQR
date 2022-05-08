@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# Author: Ahmed Khalil, Mohamed Safwat
+
+
 import board
 import adafruit_mpu6050
 import rospy

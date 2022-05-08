@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+# Author: Ahmed Khalil, Mohamed Safwat
+# Adapted from: https://automaticaddison.com 
+# Automatic Addison: https://automaticaddison.com/linear-quadratic-regulator-lqr-with-python-code-example/
+ 
 import numpy as np
 import rospy
 import serial
@@ -12,13 +16,6 @@ from geometry_msgs.msg import Twist, Pose2D
  
 wheel_width = rospy.get_param('/wheel_width_model')
 
-# Author: Addison Sears-Collins
-# https://automaticaddison.com
-# Description: Linear Quadratic Regulator example 
-#   (two-wheeled differential drive robot car)
- 
-######################## DEFINE CONSTANTS #####################################
-# Supress scientific notation when printing NumPy arrays
 np.set_printoptions(suppress=True)
 
 class LQR():

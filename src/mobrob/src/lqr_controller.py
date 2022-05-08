@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 
+# Author: Ahmed Khalil, Mohamed Safwat
+# Adapted from: https://automaticaddison.com and https://github.com/AtsushiSakai/PythonRobotics
+# Automatic Addison: https://automaticaddison.com/linear-quadratic-regulator-lqr-with-python-code-example/
+# Python Robotics: https://github.com/AtsushiSakai/PythonRobotics/blob/master/PathTracking/lqr_speed_steer_control/lqr_speed_steer_control.py
+ 
 import numpy as np
 import rospy
 import serial
@@ -14,24 +19,9 @@ import sys
 import os
 import matplotlib.pyplot as plt
 import scipy.linalg as la
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) +
-                "/../../PathPlanning/CubicSpline/")
-
-try:
-    import cubic_spline_planner
-except ImportError:
-    raise
  
 wheel_width = rospy.get_param('/wheel_width_model')
 
-# Author: Addison Sears-Collins
-# https://automaticaddison.com
-# Description: Linear Quadratic Regulator example 
-#   (two-wheeled differential drive robot car)
- 
-######################## DEFINE CONSTANTS #####################################
-# Supress scientific notation when printing NumPy arrays
 np.set_printoptions(suppress=True)
 
 class LQR():
@@ -40,7 +30,7 @@ class LQR():
         self.vel_pub = rospy.Publisher('/wheel_speeds_desired', ME439WheelSpeeds, queue_size=1)
         self.vel = ME439WheelSpeeds()
         
-        """######################################################################"""        
+        """#############################For Testing Purposes Only###########################"""        
         self.error_pub = rospy.Publisher('/total_error', Float32, queue_size=1)
         self.error = Float32()
 
@@ -92,7 +82,7 @@ class LQR():
 
     def solve_dare(self,A, B, Q, R):
         """
-        solve a discrete time_Algebraic Riccati equation (DARE)
+        solve an infinite discrete time_Algebraic Riccati equation (DARE)
         """
         x = Q
         x_next = Q
@@ -175,9 +165,6 @@ class LQR():
         return K, X, eig_result[0]
     
     def state_sub_callback(self, msg):
-        """
-        Callback function for the subscriber to the /mobrob/odom topic.
-        """
         self.x_actual = msg.x
         self.y_actual = msg.y
         self.yaw_actual = msg.theta+np.pi/2
@@ -288,20 +275,11 @@ class LQR():
             self.vel.v_left = (2*self.v_c-omega*wheel_width)/2
             self.vel.v_right = self.v_c+(omega*wheel_width)/2
         
-            
-        
             # We apply the optimal control to the robot
             # so we can get a new actual (estimated) state.
             self.actual_state_x = self.state_space_model(self.A, self.actual_state_x, self.B, 
                                             optimal_control_input)  
-            # if state_error_magnitude < 0.1:
-            #     self.vel.v_left = 0.0
-            #     self.vel.v_right = 0.0
-                # Stop as soon as we reach the goal
-                # Feel free to change this threshold value.
-                # if state_error_magnitude < 0.01:
-                #     print("\nGoal Has Been Reached Successfully!")
-                #     break
+  
             self.vel.v_left = np.clip(self.vel.v_left,-0.2,0.6)                    
             self.vel.v_right = np.clip(self.vel.v_right,-0.2,0.6)                    
 
@@ -322,8 +300,6 @@ class LQR():
             self.vel_pub.publish(self.vel)
             self.error_pub.publish(self.total_err_lqr)
             rospy.sleep(1000.)
-
-            
 
 # Entry point for the program
 if __name__ == "__main__":
