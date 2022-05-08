@@ -58,7 +58,10 @@ class LQR():
         self.actual_state_x = np.array([0,0,0])
 
         ax = [0.0, 0.0, 1]
-        ay = [0.0, 1, 1]        
+        ay = [0.0, 1, 1]   
+         
+        # ax = np.array([0.0, 1.0, 1.25 ,1.5, 2.0, 1.5, 0.0])
+        # ay = np.array([0.0, 0.5, 0.4, -0.5, 0.5, 1.0, 0.0])     
         # ax = np.array([0.0, 6.0, 12.5, 10.0, 17.5, 20.0, 25.0])*0.1
         # ay = np.array([0.0, -3.0, -5.0, 6.5, 3.0, 0.0, 0.0])*0.1
 
@@ -72,7 +75,7 @@ class LQR():
 
         self.sp = calc_speed_profile(self.cx, self.cy, cyaw=self.cyaw, target_speed=target_speed)
         self.stop_speed = 0.25
-        self.v_c = 0.3
+        self.v_c = 0.1
         self.ind, self.e = self.calc_nearest_index(self.actual_state_x, self.cx, self.cy, self.cyaw)
         self.total_ind = len(self.cx)
         self.total_err_lqr = 0

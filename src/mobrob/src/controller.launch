@@ -1,10 +1,10 @@
 <launch>
     <rosparam command="load" file="$(find mobrob_util)/src/robot_info.yaml" />
 
-    <group ns="robot_simulate">
+    <!-- <group ns="robot_simulate">
         <node pkg="mobrob" name="robot_simulator" type="mobile_robot_kinematic_simulator.py"/>
         <node pkg="mobrob" name="robot_animator" type="mobile_robot_animator.py"/>
-    </group>
+    </group> -->
 
     <!-- New Group called "robot_estimate" to estimate the robot's location based only on sensor data. -->
     <!-- In this group, launch the "dead_reckoning" node and another "animator" to draw where the robot thinks it is. -->
@@ -18,7 +18,7 @@
         <!-- first a "dead reckoning" node -->
         <!-- <node pkg="mobrob" name="lqr_DR" type="lqr_controller.py" /> -->
         <node pkg="mobrob" name="lqr_EKF" type="lqr_controller.py">
-            <remap from="/robot_pose_estimated" to="/robot_pose_ekf"/>
+            <!-- <remap from="/robot_pose_estimated" to="/robot_pose_ekf"/> -->
         </node>
     </group>
 

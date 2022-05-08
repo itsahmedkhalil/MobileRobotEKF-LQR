@@ -71,6 +71,9 @@ def animate_robot(robot):
     
     ax = [0.0, 0.0, 1]
     ay = [0.0, 1, 1]   
+
+    # ax = np.array([0.0, 1.0, 1.25 ,1.5, 2.0, 1.5, 0.0])
+    # ay = np.array([0.0, 0.5, 0.4, -0.5, 0.5, 1.0, 0.0])
     cx, cy, _, _, _ = cubic_spline_planner.calc_spline_course(ax, ay, ds=0.1)
     robotoutline, = plt.plot([], [], 'r-')
     robotpath, = plt.plot([],[], 'b--')
