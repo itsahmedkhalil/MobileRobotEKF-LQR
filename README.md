@@ -53,10 +53,10 @@ and
 ## Running the project
 
 ### Run the project on the Raspberry Pi
-#### Load the encoders on the Raspberry Pi
+#### Load the encoders on the Raspberry Pi (Only needs to be run once everytime the Raspberry Pi is powered on)
 `$ cd ~/ME439MobileRobotEKF && sudoLoad`
 #### Enter as root user
-`$ sudo su `
+`$ sudo su`
 #### Source and run the launch file
 `$ src && roslaunch mobrob plant.launch`
 
@@ -65,4 +65,8 @@ and
 #### Source the project
 `$ cd ~/ME439MobileRobotEKF && source devel/setup.bash`
 #### Run the launch file
-`roslaunch mobrob controller.launch`
+`$ roslaunch mobrob controller.launch`
+
+### Modifications to the controller
+#### To switch between using the dead reckoning state estimator and the EKF, change the following line in the controller.launch file:
+    remap the topic names from /robot_pose_estimated to /robot_pose_ekf
