@@ -1,0 +1,10 @@
+<launch>
+
+  <arg name="rvizconfig" default="$(find mobrob_util)/src/rviz_files/rviz_config2.rviz" />
+
+
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
+  <node pkg="mobrob" name="lqr_EKF" type="lqr_controller_sim.py"/>
+
+  
+</launch>
